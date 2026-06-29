@@ -1,0 +1,29 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+.venv/
+venv/
+env/
+
+# Environment Variables / Secrets
+.env
+
+# Local SQLite Databases and Checkpoints
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+chatbot.db*
+
+# Uploaded Files & Temporary Media
+uploaded_pdfs/
+whisper_service/uploads/
+*.wav
+
+# OS generated files
+.DS_Store
+Thumbs.db
