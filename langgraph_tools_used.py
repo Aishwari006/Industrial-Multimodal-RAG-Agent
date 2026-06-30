@@ -6,6 +6,8 @@ import os
 from multimodal_rag.main import retrieve_context
 from langchain_core.runnables import RunnableConfig
 from pathlib import Path
+from pydantic import BaseModel, Field
+from youtube_engine.youtube_context_engine import YouTubeContextEngine
 load_dotenv()
 
 # ****************************************
@@ -53,47 +55,35 @@ def pdf_qa_tool(query: str, config: RunnableConfig) -> str:
         query=query,
         thread_id=thread_id,
     )
+
 # ****************************************
-# Calculator
+# Youtube engine
 # ****************************************
 
-@tool
-def calculator(first_num: float, second_num: float, operation: str) -> dict:
+
+# Instantiate the engine globally or inside your routing context
+youtube_engine = YouTubeContextEngine()
+
+class YouTubeContextInput(BaseModel):
+    url: str = Field(description="The complete YouTube URL or video ID to fetch context from.")
+    query: str = Field(description="The specific question or semantic query regarding the video content.")
+    thread_id: str = Field(description="The persistent conversation session or thread ID.")
+
+@tool("youtube_transcript_context_retriever", args_schema=YouTubeContextInput)
+def youtube_transcript_context_retriever(url: str, query: str, thread_id: str) -> str:
     """
-    Perform a basic arithmetic operation.
-
-    Use this tool whenever the user asks for mathematical calculations.
-
-    Supported operations:
-    - add
-    - sub
-    - mul
-    - div
+    Extracts relevant context chunks from a YouTube video transcript via semantic similarity search. 
+    Use this tool whenever a user provides a YouTube video link and asks questions regarding its text content.
     """
-
     try:
-        if operation == "add":
-            result = first_num + second_num
-        elif operation == "sub":
-            result = first_num - second_num
-        elif operation == "mul":
-            result = first_num * second_num
-        elif operation == "div":
-            if second_num == 0:
-                return {"error": "Division by zero is not allowed"}
-            result = first_num / second_num
-        else:
-            return {"error": f"Unsupported operation '{operation}'"}
-
-        return {
-            "first_num": first_num,
-            "second_num": second_num,
-            "operation": operation,
-            "result": result
-        }
-
+        context_block = youtube_engine.retrieve_context(
+            video_url_or_id=url,
+            query=query,
+            thread_id=thread_id
+        )
+        return context_block
     except Exception as e:
-        return {"error": str(e)}
+        return f"Error retrieving context from YouTube transcript: {str(e)}"
 
 # ****************************************
 # Stock Price
@@ -271,9 +261,9 @@ def crawl_webpage(url: str) -> dict:
 # ****************************************
 
 tools = [
-    calculator,
+    youtube_transcript_context_retriever,
     get_stock_price,
     web_search,
     crawl_webpage,
-    pdf_qa_tool
+    pdf_qa_tool,
 ]

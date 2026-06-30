@@ -7,6 +7,7 @@ import uuid
 import tempfile
 import os
 from pathlib import Path
+from langchain_core.prompts import ChatPromptTemplate
 
 # **************************************** Constants & Config *************************
 MAX_FILE_SIZE_MB = 10  # Enforce small file size limit
@@ -199,20 +200,30 @@ if st.button("Send"):
     # Stream the assistant's reply
     with st.chat_message("assistant"):
         def ai_only_stream():
-            # Construct the payload message text
-            final_content = user_input
-            
-            # CRITICAL FIX: If a PDF is active, seamlessly append a system injection instruction 
-            # to let the LLM know the document is active and it is authorized to call its RAG tool.
+            # 1. Define the base prompt structure
             if st.session_state["pdf_path"]:
-                filename_clean = Path(st.session_state["pdf_path"]).name.split("_", 1)[-1]
-                final_content += f"\n\n[System Context: An active PDF document named '{filename_clean}' is uploaded for this conversation thread. If the user's message requires data or context from the file, use your pdf retrieval tool to query it.]"
+                filename = Path(st.session_state["pdf_path"]).name.split("_", 1)[-1]
+                
+                # Use a ChatPromptTemplate to inject the system instructions as a proper SystemMessage
+                prompt = ChatPromptTemplate.from_messages([
+                    ("system", f"You have access to an active PDF document named '{filename}'. "
+                               "If the user's message requires data or context from the file, "
+                               "use your PDF retrieval tool to query it."),
+                    ("human", "{input}")
+                ])
+                # Format to get a list of [SystemMessage, HumanMessage]
+                messages = prompt.format_messages(input=user_input)
+            else:
+                # If no PDF, just send the HumanMessage
+                messages = [HumanMessage(content=user_input)]
             
-            user_payload = {"messages": [HumanMessage(content=final_content)]}
+            # 2. Build the payload
+            user_payload = {"messages": messages}
             
+            # 3. Stream from chatbot
             for message_chunk, metadata in chatbot.stream(
                 user_payload,
-                config=CONFIG,  # CONFIG already holds the thread_id
+                config=CONFIG,
                 stream_mode="messages",
             ):
                 if isinstance(message_chunk, AIMessage): 

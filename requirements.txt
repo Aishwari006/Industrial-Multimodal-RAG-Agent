@@ -62,3 +62,6 @@ Pillow==12.2.0
 
 # Vector Database
 langchain-chroma==1.1.0
+
+#youtube transcript
+youtube-transcript-api
